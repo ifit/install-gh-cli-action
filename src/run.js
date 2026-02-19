@@ -24,18 +24,36 @@ async function getGhCli(version) {
   core.addPath(toolPath);
 }
 
-async function downloadGhCli(version) {
+function getOperatingSystem() {
+  const platform = process.platform;
+  if (platform === 'darwin') {
+    return 'macOS';
+  }
+  return platform;
+}
 
+async function downloadGhCli(version) {
   let architecture = 'amd64';
   if (process.arch == 'arm64') {
     architecture = 'arm64';
   }
-  const toolDirectoryName = `gh_${version}_linux_${architecture}`;
-  const downloadUrl = `https://github.com/cli/cli/releases/download/v${version}/gh_${version}_linux_${architecture}.tar.gz`;
+
+  const operatingSystem = getOperatingSystem();
+  const toolDirectoryName = `gh_${version}_${operatingSystem}_${architecture}`;
+  const fileExtension = operatingSystem === 'macOS' ? 'zip' : 'tar.gz';
+  const downloadUrl = `https://github.com/cli/cli/releases/download/v${version}/${toolDirectoryName}.${fileExtension}`;
+
   console.log(`downloading ${downloadUrl}`);
   try {
     const downloadPath = await tc.downloadTool(downloadUrl);
-    const extractedPath = await tc.extractTar(downloadPath);
+    let extractedPath;
+
+    if (operatingSystem === 'macOS') {
+      extractedPath = await tc.extractZip(downloadPath);
+    } else {
+      extractedPath = await tc.extractTar(downloadPath);
+    }
+
     let toolRoot = path.join(extractedPath, toolDirectoryName);
     return await tc.cacheDir(toolRoot, 'gh-cli', version);
   } catch (err) {
